@@ -11,7 +11,7 @@ embassy-stm32 = { version = "0.1.0", features = [ "defmt", "stm32f103c8", "unsta
 #embassy-sync = { version = "0.5.0", path = "../../embassy-sync", features = ["defmt"] }
 embassy-sync = { version = "0.5.0", features = ["defmt"] }
 #embassy-executor = { version = "0.5.0", path = "../../embassy-executor", features = ["arch-cortex-m", "executor-thread", "defmt", "integrated-timers"] }
-embassy-executor = { version = "0.5.0", features = ["arch-cortex-m", "executor-thread", "defmt", "integrated-timers"] }
+embassy-executor = { version = "0.5.0", features = ["arch-cortex-m", "executor-thread", "defmt", "integrated-timers", "executor-interrupt"] }
 #embassy-time = { version = "0.3.0", path = "../../embassy-time", features = ["defmt", "defmt-timestamp-uptime", "tick-hz-32_768"] }
 embassy-time = { version = "0.3.0", features = ["defmt", "defmt-timestamp-uptime", "tick-hz-32_768"] }
 #embassy-usb = { version = "0.1.0", path = "../../embassy-usb", features = ["defmt"] }
@@ -29,6 +29,7 @@ panic-probe = { version = "0.3", features = ["print-defmt"] }
 futures = { version = "0.3.17", default-features = false, features = ["async-await"] }
 heapless = { version = "0.8", default-features = false }
 nb = "1.0.0"
+sh1106 = "0.5.0"
 
 [profile.dev]
 opt-level = "s"
