@@ -12,6 +12,8 @@ bind_interrupts!(struct Irqs {
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
+
+    //adxl
     
     info!("Hello World!");
     loop {
