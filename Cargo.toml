@@ -30,6 +30,7 @@ futures = { version = "0.3.17", default-features = false, features = ["async-awa
 heapless = { version = "0.8", default-features = false }
 nb = "1.0.0"
 sh1106 = "0.5.0"
+embedded-graphics = "0.8.1"
 
 [profile.dev]
 opt-level = "s"

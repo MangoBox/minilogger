@@ -7,15 +7,16 @@ use embassy_executor::Spawner;
 //use embassy_stm32::interrupt::typelevel::Binding;
 use embassy_stm32::{bind_interrupts, i2c, peripherals, dma::NoDma, time::hz, Config};
 use embassy_stm32::i2c::I2c;
-//use embassy_stm32::i2c;
-//use embassy_stm32::dma::NoDma;
-//use embassy_stm32::i2c;
-//use embassy_stm32::peripherals::{I2C1};
-//use embassy_stm32::interrupt;
-//use embassy_stm32::peripherals::I2C1;
-//use embassy_stm32::time::hz;
-//use embassy_stm32::usart::{Config, UartTx};
-//use embassy_time::Delay;
+use embedded_graphics::mono_font::iso_8859_10::FONT_5X7;
+use embedded_graphics::{
+    mono_font::{ascii::FONT_6X10,ascii::FONT_10X20, MonoTextStyle},
+    pixelcolor::BinaryColor,
+    prelude::*,
+    primitives::{
+        Circle, PrimitiveStyle, PrimitiveStyleBuilder, Rectangle, StrokeAlignment, Triangle,
+    },
+    text::{Alignment, Text},
+};
 use {defmt_rtt as _, panic_probe as _};
 
 use sh1106::{prelude::*, Builder};
@@ -52,7 +53,24 @@ async fn main(_spawner: Spawner) {
     display.init().unwrap();
     display.flush().unwrap();
 
-    display.set_pixel(10, 20, 1);
+    let main_style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
+    let small_style = MonoTextStyle::new(&FONT_5X7, BinaryColor::On);
+    let text = "MINILOGGER";
+    Text::with_alignment(
+        text,
+        display.bounding_box().center() + Point::new(0, 20),
+        main_style,
+        Alignment::Center,
+    )
+    .draw(&mut display).unwrap();
+    
+    Text::with_alignment(
+        "L. Davies & B. Caley",
+        display.bounding_box().center() + Point::new(0, 0),
+        small_style,
+        Alignment::Center,
+    )
+    .draw(&mut display).unwrap();
 
     display.flush().unwrap();
 
