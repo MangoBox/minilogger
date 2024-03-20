@@ -1,0 +1,31 @@
+# -*- coding: utf-8 -*-
+
+[package]
+name        = "adxl345_driver2"
+version     = "2.0.0"
+authors     = [ "Michael Büsch <m@bues.ch>", "Michael Cummings <dragonrun1@gmail.com>" ]
+description = "Driver for Analog Device ADXL345/ADXL346 3-Axis Digital Accelerometer"
+edition     = "2021"
+keywords    = [ "adxl345", "adxl346", "embedded", "driver" ]
+categories  = [ "embedded", "hardware-support", "os" ]
+license     = "MIT"
+homepage    = "https://bues.ch"
+readme      = "README.md"
+repository  = "https://git.bues.ch/git/adxl345_driver2.git"
+
+[dependencies]
+bitflags = "2"
+c2rust-bitfields = { version = "0.18", features = ["no_std"], default_features = false }
+embedded-hal = "1"
+
+[dev-dependencies]
+anyhow = { version = "1.0", default-features = false }
+ctrlc = { version = "3", features = ["termination"] }
+rppal = { version = "0.17", features = ["hal"] }
+
+[features]
+default = []
+no_std = []
+#![no_std]
+
+# vim: ts=4 sw=4 expandtab
