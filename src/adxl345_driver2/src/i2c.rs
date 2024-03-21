@@ -23,8 +23,6 @@
 
 //! Contains the I²C driver for the device.
 
-use core::result::Result::Err;
-use core::result::Result::Ok;
 use core::fmt::Debug;
 use core::prelude::rust_2021::derive;
 

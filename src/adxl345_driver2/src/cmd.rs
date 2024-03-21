@@ -1,4 +1,3 @@
-#![no_std]
 // MIT License
 //
 // Copyright 2023-2024 Michael Büsch <m@bues.ch>
@@ -63,12 +62,6 @@
 
 
 use crate::{AdxlError, AdxlResult, Result};
-use core::convert::{TryFrom, TryInto};
-use core::result::Result::Err;
-use core::result::Result::Ok;
-use core::convert::Into;
-use core::option::Option;
-use core::option::Option::Some;
 use core::clone::Clone;
 use core::marker::Copy;
 use core::cmp::PartialEq;
@@ -77,7 +70,6 @@ use core::cmp::PartialOrd;
 use core::cmp::Ord;
 use core::hash::Hash;
 use core::default::Default;
-use core::convert::From;
 use core::fmt::Debug;
 use core::prelude::rust_2021::derive;
 
