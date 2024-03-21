@@ -25,8 +25,8 @@ bind_interrupts!(struct Irqs {
     //ADC1_2 => adc::InterruptHandler<ADC1>;
 });
 
-#[embassy_executor::main]
-async fn main(_spawner: Spawner) {
+#[embassy_executor::task]
+async fn adxl() {
     let p = embassy_stm32::init(Default::default());
 
     let mybus = I2c::new(
@@ -68,4 +68,9 @@ async fn main(_spawner: Spawner) {
         info!("X-axis = {}, Y-axis = {}, Z-axis = {}", x, y, z);
         Timer::after_millis(150).await;
     }
+}
+
+#[embassy_executor::main]
+async fn main(_spawner: Spawner) {
+    _spawner.spawn(adxl()).unwrap();
 }
