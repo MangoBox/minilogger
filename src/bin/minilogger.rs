@@ -13,8 +13,6 @@ use embassy_stm32::dma::NoDma;
 use embassy_stm32::time::hz;
 use embassy_time::Timer;
 
-
-
 /// Output scale is 4mg/LSB.
 const SCALE_MULTIPLIER: f64 = 0.004;
 /// Average Earth gravity in m/s²
