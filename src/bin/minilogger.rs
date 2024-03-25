@@ -4,9 +4,11 @@
 use core::option::Option::Some;
 use defmt::{panic, *};
 use embassy_executor::Spawner; 
+use embassy_stm32::pac::I2C1;
 //use embassy_stm32::interrupt::typelevel::Binding;
 use embassy_stm32::{bind_interrupts, i2c, peripherals, dma::NoDma, time::hz, Config};
 use embassy_stm32::i2c::I2c;
+use embassy_time::Timer;
 use embedded_graphics::mono_font::iso_8859_10::FONT_5X7;
 use embedded_graphics::{
     mono_font::{ascii::FONT_6X10,ascii::FONT_10X20, MonoTextStyle},
@@ -19,13 +21,6 @@ use embedded_graphics::{
 };
 use {defmt_rtt as _, panic_probe as _};
 use adxl345_driver2::{i2c::Device, Adxl345Reader, Adxl345Writer};
-use embassy_stm32::i2c;
-use embassy_stm32::i2c::I2c;
-use embassy_stm32::peripherals;
-use embassy_stm32::dma::NoDma;
-use embassy_stm32::time::hz;
-use embassy_time::Timer;
-
 
 
 /// Output scale is 4mg/LSB.
@@ -36,9 +31,6 @@ const EARTH_GRAVITY_MS2: f64 = 9.80665;
 
 use sh1106::{prelude::*, Builder};
 
-/*bind_interrupts!(struct Irqs {
-    I2C1 => i2c::EventInterruptHandler<peripherals::I2C1>, i2c::ErrorInterruptHandler<peripherals::I2C1>;
-});*/
 bind_interrupts!(struct Irqs {
     I2C1_EV => i2c::EventInterruptHandler<peripherals::I2C1>;
     I2C1_ER => i2c::ErrorInterruptHandler<peripherals::I2C1>;
@@ -47,26 +39,9 @@ use embassy_stm32::peripherals::*;
 
 
 #[embassy_executor::task]
-async fn adxl() {
-    let p = embassy_stm32::init(Default::default());
-
-    let mybus = I2c::new(
-        p.I2C1,
-        p.PB6,
-        p.PB7,
-        Irqs,
-        NoDma,
-        NoDma,
-        hz(100000),
-        Default::default(),
-    );
-
-    bind_interrupts!(struct Irqs {
-        I2C1_EV => i2c::EventInterruptHandler<peripherals::I2C1>;
-        I2C1_ER => i2c::ErrorInterruptHandler<peripherals::I2C1>;
-    });
+async fn adxl(bus: I2c<'_, I2C1>) {
     
-    let mut adxl345 = Device::new(mybus).unwrap();
+    let mut adxl345 = Device::new(bus).unwrap();
 
     adxl345
         .set_data_format(8)
@@ -91,24 +66,9 @@ async fn adxl() {
     }
 }
 
-#[embassy_executor::main]
-async fn main(_spawner: Spawner) {
-    
-    let mut config = Config::default();
-    let p = embassy_stm32::init(config);
-    
-    let i2c = i2c::I2c::new(
-        p.I2C1,
-        p.PB6,
-        p.PB7,
-        Irqs,
-        NoDma,
-        NoDma,
-        hz(100000),
-        Default::default(),
-    );
-
-    let mut display: GraphicsMode<_> = Builder::new().connect_i2c(i2c).into();
+#[embassy_executor::task]
+async fn sh1106(bus: I2c<'_,I2C1>) {
+    let mut display: GraphicsMode<_> = Builder::new().connect_i2c(bus).into();
 
     display.init().unwrap();
     display.flush().unwrap();
@@ -133,5 +93,37 @@ async fn main(_spawner: Spawner) {
     .draw(&mut display).unwrap();
 
     display.flush().unwrap();
-_spawner.spawn(adxl()).unwrap();
+
+}
+
+#[embassy_executor::main]
+async fn main(_spawner: Spawner) {
+    
+    let mut config = Config::default();
+    let p = embassy_stm32::init(config);
+    
+    let i2c1 = i2c::I2c::new(
+        p.I2C1,
+        p.PB6,
+        p.PB7,
+        Irqs,
+        NoDma,
+        NoDma,
+        hz(100000),
+        Default::default(),
+    );
+    let i2c2 = i2c::I2c::new(
+        p.I2C1,
+        p.PB6,
+        p.PB7,
+        Irqs,
+        NoDma,
+        NoDma,
+        hz(100000),
+        Default::default(),
+    );
+
+
+    _spawner.spawn(adxl(i2c1)).unwrap();
+    _spawner.spawn(sh1106(i2c2)).unwrap();
 }
