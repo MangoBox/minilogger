@@ -1,13 +1,16 @@
 #![no_std]
 #![no_main]
 
+use core::cell::RefCell;
 use core::option::Option::Some;
+use core::option::Option::None;
 use defmt::{panic, *};
 use embassy_executor::Spawner; 
 use embassy_stm32::pac::I2C1;
 //use embassy_stm32::interrupt::typelevel::Binding;
 use embassy_stm32::{bind_interrupts, i2c, peripherals, dma::NoDma, time::hz, Config};
 use embassy_stm32::i2c::I2c;
+use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_time::Timer;
 use embedded_graphics::mono_font::iso_8859_10::FONT_5X7;
 use embedded_graphics::{
@@ -21,13 +24,16 @@ use embedded_graphics::{
 };
 use {defmt_rtt as _, panic_probe as _};
 use adxl345_driver2::{i2c::Device, Adxl345Reader, Adxl345Writer};
+use embassy_sync::blocking_mutex::Mutex;
 
+
+static I2C1_MUTEX: Mutex<ThreadModeRawMutex, RefCell<Option<I2c<'static, I2C1>>>> = Mutex::new(RefCell::new(None));
+static DEVICE: Mutex<ThreadModeRawMutex, RefCell<Option<Device<&mut I2c<'static, I2C1>>>>> = Mutex::new(RefCell::new(None));
 
 /// Output scale is 4mg/LSB.
 const SCALE_MULTIPLIER: f64 = 0.004;
 /// Average Earth gravity in m/s²
 const EARTH_GRAVITY_MS2: f64 = 9.80665;
-
 
 use sh1106::{prelude::*, Builder};
 
@@ -39,35 +45,41 @@ use embassy_stm32::peripherals::*;
 
 
 #[embassy_executor::task]
-async fn adxl(bus: I2c<'_, I2C1>) {
-    
-    let mut adxl345 = Device::new(bus).unwrap();
+async fn adxl() {
+    I2C1_MUTEX.lock(|i| {
+        DEVICE.lock(|device| {
+            let mut adxl345 = Device::new(i.borrow_mut().take().unwrap()).unwrap();
+            adxl345.init().unwrap();
+            adxl345
+                .set_data_format(8)
+                .unwrap();
+            // Set measurement mode on.
+            adxl345
+                .set_power_control(8)
+                .unwrap();
 
-    adxl345
-        .set_data_format(8)
-        .unwrap();
-    // Set measurement mode on.
-    adxl345
-        .set_power_control(8)
-        .unwrap();
-
-    loop{
-        // Set full scale output and range to 2G.
+            *DEVICE.lock().borrow_mut() = Some(adxl);
+            //device.replace(Some(adxl345));
+        });    
+    });
 
 
-        let (x, y, z) = adxl345
-            .acceleration()
-            .unwrap();
-        let x = x as f64 * SCALE_MULTIPLIER * EARTH_GRAVITY_MS2;
-        let y = y as f64 * SCALE_MULTIPLIER * EARTH_GRAVITY_MS2;
-        let z = z as f64 * SCALE_MULTIPLIER * EARTH_GRAVITY_MS2;
-        info!("X-axis = {}, Y-axis = {}, Z-axis = {}", x, y, z);
-        Timer::after_millis(150).await;
+
+    loop {
+        DEVICE.lock(|device| {
+            let mut binding = device.borrow_mut();
+            let mut adxl345 = binding.as_mut().unwrap();
+            // Set full scale output and range to 2G.
+            let (x, y, z) = adxl345.acceleration().unwrap();
+            let x = x as f64 * SCALE_MULTIPLIER * EARTH_GRAVITY_MS2;
+            let y = y as f64 * SCALE_MULTIPLIER * EARTH_GRAVITY_MS2;
+        });
+        Timer::after_millis(10).await;
     }
 }
 
 #[embassy_executor::task]
-async fn sh1106(bus: I2c<'_,I2C1>) {
+async fn sh1106() {
     let mut display: GraphicsMode<_> = Builder::new().connect_i2c(bus).into();
 
     display.init().unwrap();
@@ -102,7 +114,7 @@ async fn main(_spawner: Spawner) {
     let mut config = Config::default();
     let p = embassy_stm32::init(config);
     
-    let i2c1 = i2c::I2c::new(
+    let i2c = i2c::I2c::new(
         p.I2C1,
         p.PB6,
         p.PB7,
@@ -112,7 +124,7 @@ async fn main(_spawner: Spawner) {
         hz(100000),
         Default::default(),
     );
-    let i2c2 = i2c::I2c::new(
+    /*let i2c2 = i2c::I2c::new(
         p.I2C1,
         p.PB6,
         p.PB7,
@@ -121,9 +133,11 @@ async fn main(_spawner: Spawner) {
         NoDma,
         hz(100000),
         Default::default(),
-    );
+    );*/
+    I2C1_MUTEX.lock(|i| {
+        i.replace(Some(i2c));
+    });
 
-
-    _spawner.spawn(adxl(i2c1)).unwrap();
-    _spawner.spawn(sh1106(i2c2)).unwrap();
+    _spawner.spawn(adxl()).unwrap();
+    _spawner.spawn(sh1106()).unwrap();
 }
