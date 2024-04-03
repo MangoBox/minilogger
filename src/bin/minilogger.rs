@@ -1,17 +1,16 @@
+#![deny(unsafe_code)]
 #![no_std]
 #![no_main]
 
+
+use core::borrow::BorrowMut;
 use core::cell::RefCell;
 use core::option::Option::Some;
 use core::option::Option::None;
+//use adxl345_eh_driver::Driver;
+use adxl343::Adxl343;
 use defmt::{panic, *};
-use embassy_executor::Spawner; 
-use embassy_stm32::pac::I2C1;
-//use embassy_stm32::interrupt::typelevel::Binding;
-use embassy_stm32::{bind_interrupts, i2c, peripherals, dma::NoDma, time::hz, Config};
-use embassy_stm32::i2c::I2c;
-use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
-use embassy_time::Timer;
+use embedded_hal::i2c;
 use embedded_graphics::mono_font::iso_8859_10::FONT_5X7;
 use embedded_graphics::{
     mono_font::{ascii::FONT_6X10,ascii::FONT_10X20, MonoTextStyle},
@@ -22,14 +21,24 @@ use embedded_graphics::{
     },
     text::{Alignment, Text},
 };
+//use embedded_hal::i2c::I2c;
+use sh1106::mode::displaymode::DisplayMode;
+use sh1106::mode::RawMode;
+use stm32f1xx_hal::i2c::BlockingI2c;
+use adxl343::accelerometer::Accelerometer;
+use stm32f1xx_hal::i2c::DutyCycle;
+use stm32f1xx_hal::i2c::I2c;
+use stm32f1xx_hal::i2c::Mode;
 use {defmt_rtt as _, panic_probe as _};
-use adxl345_driver2::{i2c::Device, Adxl345Reader, Adxl345Writer};
-use embassy_sync::blocking_mutex::Mutex;
+//use accelerometer::Accelerometer;
+//use adxl345_driver2::{i2c::Device, Adxl345Reader, Adxl345Writer};
 
+use shared_bus::BusManagerSimple;
 
-static I2C1_MUTEX: Mutex<ThreadModeRawMutex, RefCell<Option<I2c<'static, I2C1>>>> = Mutex::new(RefCell::new(None));
-static DEVICE: Mutex<ThreadModeRawMutex, RefCell<Option<Device<&mut I2c<'static, I2C1>>>>> = Mutex::new(RefCell::new(None));
+use nb::block;
 
+use cortex_m_rt::entry;
+use stm32f1xx_hal::{pac, prelude::*, timer::Timer};
 /// Output scale is 4mg/LSB.
 const SCALE_MULTIPLIER: f64 = 0.004;
 /// Average Earth gravity in m/s²
@@ -37,107 +46,77 @@ const EARTH_GRAVITY_MS2: f64 = 9.80665;
 
 use sh1106::{prelude::*, Builder};
 
-bind_interrupts!(struct Irqs {
-    I2C1_EV => i2c::EventInterruptHandler<peripherals::I2C1>;
-    I2C1_ER => i2c::ErrorInterruptHandler<peripherals::I2C1>;
-});
-use embassy_stm32::peripherals::*;
+//static I2C_MUTEX: Mutex<ThreadModeRawMutex, Option<I2c<I2C1>>> = Mutex::new(None);
 
+#[entry]
+fn main() -> ! {
+    info!("hello");
+    let cp = cortex_m::Peripherals::take().unwrap();
+    // Get access to the device specific peripherals from the peripheral access crate
+    let dp = pac::Peripherals::take().unwrap();
+    let mut flash = dp.FLASH.constrain();
+    let rcc = dp.RCC.constrain();
+    let mut afio = dp.AFIO.constrain();
 
-#[embassy_executor::task]
-async fn adxl() {
-    I2C1_MUTEX.lock(|i| {
-        DEVICE.lock(|device| {
-            let mut adxl345 = Device::new(i.borrow_mut().take().unwrap()).unwrap();
-            adxl345.init().unwrap();
-            adxl345
-                .set_data_format(8)
-                .unwrap();
-            // Set measurement mode on.
-            adxl345
-                .set_power_control(8)
-                .unwrap();
+    // Freeze the configuration of all the clocks in the system and store the frozen frequencies in
+    // `clocks`
+    let clocks = rcc.cfgr.freeze(&mut flash.acr);
+    let mut gpiob = dp.GPIOB.split();
 
-            *DEVICE.lock().borrow_mut() = Some(adxl);
-            //device.replace(Some(adxl345));
-        });    
-    });
+    let scl = gpiob.pb6.into_alternate_open_drain(&mut gpiob.crl);
+    let sda = gpiob.pb7.into_alternate_open_drain(&mut gpiob.crl);
 
+    info!("initialised components...");
+    let i2c = I2c::i2c1(
+        dp.I2C1,
+        (scl, sda),
+        &mut afio.mapr,
+        Mode::Fast {
+            frequency: 400.kHz(),
+            duty_cycle: DutyCycle::Ratio16to9,
+        },
+        clocks
+    ).blocking_default(clocks);
+    //let i2c1 = I2c::new(p.I2C1, , p.PB6, p.PB7, Irqs, NoDma, hz(100000), p);
+    let bus = shared_bus::BusManagerSimple::new(i2c);
 
-
-    loop {
-        DEVICE.lock(|device| {
-            let mut binding = device.borrow_mut();
-            let mut adxl345 = binding.as_mut().unwrap();
-            // Set full scale output and range to 2G.
-            let (x, y, z) = adxl345.acceleration().unwrap();
-            let x = x as f64 * SCALE_MULTIPLIER * EARTH_GRAVITY_MS2;
-            let y = y as f64 * SCALE_MULTIPLIER * EARTH_GRAVITY_MS2;
-        });
-        Timer::after_millis(10).await;
-    }
-}
-
-#[embassy_executor::task]
-async fn sh1106() {
-    let mut display: GraphicsMode<_> = Builder::new().connect_i2c(bus).into();
-
+    info!("initialised i2c...");
+    let mut display: GraphicsMode<_> = Builder::new().connect_i2c(bus.acquire_i2c()).into();
     display.init().unwrap();
     display.flush().unwrap();
 
-    let main_style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
-    let small_style = MonoTextStyle::new(&FONT_5X7, BinaryColor::On);
-    let text = "MINILOGGER";
-    Text::with_alignment(
-        text,
-        display.bounding_box().center() + Point::new(0, 20),
-        main_style,
-        Alignment::Center,
-    )
-    .draw(&mut display).unwrap();
-    
-    Text::with_alignment(
-        "L. Davies & B. Caley",
-        display.bounding_box().center() + Point::new(0, 0),
-        small_style,
-        Alignment::Center,
-    )
-    .draw(&mut display).unwrap();
+    info!("started display...");
+    //let adxl_proxy = bus.acquire_i2c();
+    //let mut adxl345 = Driver::new(bus.acquire_i2c()).unwrap();
+    let mut adxl = Adxl343::new(bus.acquire_i2c()).unwrap();
 
-    display.flush().unwrap();
+    loop {
+        let values = adxl.accel_norm().unwrap();
+        let x = values.x as f64 * SCALE_MULTIPLIER * EARTH_GRAVITY_MS2;
+        let y = values.y as f64 * SCALE_MULTIPLIER * EARTH_GRAVITY_MS2;
+        let z = values.z as f64 * SCALE_MULTIPLIER * EARTH_GRAVITY_MS2;
+        info!("X-axis = {}, Y-axis = {}, Z-axis = {}", x, y, z);
 
-}
+        //Write data to the display
+        let main_style = MonoTextStyle::new(&FONT_10X20, BinaryColor::On);
+        let small_style = MonoTextStyle::new(&FONT_5X7, BinaryColor::On);
+        let text = "MINILOGGER";
+        Text::with_alignment(
+            text,
+            display.bounding_box().center() + Point::new(0, 20),
+            main_style,
+            Alignment::Center,
+        )
+        .draw(&mut display).unwrap();
+        
+        Text::with_alignment(
+            "L. Davies & B. Caley",
+            display.bounding_box().center() + Point::new(0, 0),
+            small_style,
+            Alignment::Center,
+        )
+        .draw(&mut display).unwrap();
 
-#[embassy_executor::main]
-async fn main(_spawner: Spawner) {
-    
-    let mut config = Config::default();
-    let p = embassy_stm32::init(config);
-    
-    let i2c = i2c::I2c::new(
-        p.I2C1,
-        p.PB6,
-        p.PB7,
-        Irqs,
-        NoDma,
-        NoDma,
-        hz(100000),
-        Default::default(),
-    );
-    /*let i2c2 = i2c::I2c::new(
-        p.I2C1,
-        p.PB6,
-        p.PB7,
-        Irqs,
-        NoDma,
-        NoDma,
-        hz(100000),
-        Default::default(),
-    );*/
-    I2C1_MUTEX.lock(|i| {
-        i.replace(Some(i2c));
-    });
-
-    _spawner.spawn(adxl()).unwrap();
-    _spawner.spawn(sh1106()).unwrap();
+        display.flush().unwrap();
+    }
 }
