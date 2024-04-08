@@ -31,14 +31,8 @@ sh1106 = "0.5.0"
 embedded-graphics = "0.8.1"
 panic-halt = "0.2.0"
 shared-bus = "0.3.1"
-adxl343 = "0.8.0"
-accelerometer = "0.12.0"
 #adxl345-eh-driver = "0.2.0"
-
-
-#[dependencies.adxl345_driver2]
-#path = "src/adxl345_driver2/"
-
+adxl345_driver2 = {path = "src/adxl345_driver2"}
 
 [dependencies.stm32f1xx-hal]
 version = "0.10.0"
