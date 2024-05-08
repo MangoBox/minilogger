@@ -41,8 +41,7 @@ async fn adxl() {
     );
 
     bind_interrupts!(struct Irqs {
-        I2C1_EV => i2c::EventInterruptHandler<peripherals::I2C1>;
-        I2C1_ER => i2c::ErrorInterruptHandler<peripherals::I2C1>;
+        I2C1 => i2c::EventInterruptHandler<peripherals::I2C1>, i2c::ErrorInterruptHandler<peripherals::I2C1>;
     });
     
     let mut adxl345 = Device::new(mybus).unwrap();
