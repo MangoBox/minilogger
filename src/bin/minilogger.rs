@@ -11,8 +11,10 @@ use embassy_stm32::i2c::I2c;
 use embassy_stm32::peripherals;
 use embassy_stm32::dma::NoDma;
 use embassy_stm32::time::hz;
-use embassy_time::Timer;
-
+use embassy_time::{Delay, Timer};
+use embassy_stm32::{adc};
+use embassy_stm32::adc::{Adc, SampleTime};
+use embassy_stm32::peripherals::ADC;
 
 
 /// Output scale is 4mg/LSB.
@@ -21,9 +23,10 @@ const SCALE_MULTIPLIER: f64 = 0.004;
 const EARTH_GRAVITY_MS2: f64 = 9.80665;
 
 
-bind_interrupts!(struct Irqs { 
-    //ADC1_2 => adc::InterruptHandler<ADC1>;
-});
+// bind_interrupts!(struct Irqs { 
+//     //ADC1_2 => adc::InterruptHandler<ADC1>;
+    
+// });
 
 #[embassy_executor::task]
 async fn adxl() {
@@ -42,6 +45,7 @@ async fn adxl() {
 
     bind_interrupts!(struct Irqs {
         I2C1 => i2c::EventInterruptHandler<peripherals::I2C1>, i2c::ErrorInterruptHandler<peripherals::I2C1>;
+        ADC1_COMP => adc::InterruptHandler<ADC>;
     });
     
     let mut adxl345 = Device::new(mybus).unwrap();
@@ -54,6 +58,12 @@ async fn adxl() {
         .set_power_control(8)
         .unwrap();
 
+    let mut adc = Adc::new(p.ADC, Irqs, &mut Delay {});
+    adc.set_sample_time(SampleTime::Cycles71_5);
+    let mut pin_0 = p.PA0;
+    let mut pin_1 = p.PA1;
+
+    let mut vrefint = adc.enable_vref(&mut Delay {});
     loop{
         // Set full scale output and range to 2G.
 
@@ -64,8 +74,11 @@ async fn adxl() {
         let x = x as f64 * SCALE_MULTIPLIER * EARTH_GRAVITY_MS2;
         let y = y as f64 * SCALE_MULTIPLIER * EARTH_GRAVITY_MS2;
         let z = z as f64 * SCALE_MULTIPLIER * EARTH_GRAVITY_MS2;
-        info!("X-axis = {}, Y-axis = {}, Z-axis = {}", x, y, z);
-        Timer::after_millis(150).await;
+
+        let v0 = adc.read(&mut pin_0).await;
+        let v1 = adc.read(&mut pin_1).await;
+        info!("PA0: {}\tPA1: {} \tX-axis = {}\tY-axis = {}\tZ-axis = {}", v0, v1, x, y, z);
+        Timer::after_millis(100).await;
     }
 }
 
