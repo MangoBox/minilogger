@@ -21,19 +21,21 @@ async fn main(_spawner: Spawner) {
 
     let mut adc = Adc::new(p.ADC, Irqs, &mut Delay {});
     adc.set_sample_time(SampleTime::Cycles71_5);
-    let mut pin = p.PA1;
+    let mut pin_0 = p.PA0;
+    let mut pin_1 = p.PA1;
 
     let mut vrefint = adc.enable_vref(&mut Delay {});
     let vrefint_sample = adc.read(&mut vrefint).await;
-    let convert_to_millivolts = |sample| {
-        const VREFINT_MV: u32 = 1230; // mV
+    // let convert_to_millivolts = |sample| {
+    //     const VREFINT_MV: u32 = 1230; // mV
 
-        (u32::from(sample) * VREFINT_MV / u32::from(vrefint_sample)) as u16
-    };
+    //     (u32::from(sample) * VREFINT_MV / u32::from(vrefint_sample)) as u16
+    // };
 
     loop {
-        let v = adc.read(&mut pin).await;
-        info!("--> {} - {} mV", v, convert_to_millivolts(v));
+        let v0 = adc.read(&mut pin_0).await;
+        let v1 = adc.read(&mut pin_1).await;
+        info!("PA0: {}\t\tPA1: {}", v0, v1);
         Timer::after_millis(100).await;
     }
 }
