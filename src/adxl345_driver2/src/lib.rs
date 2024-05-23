@@ -26,8 +26,6 @@
 //!
 //! This is meant to be a hardware level driver interface for the device.
 
-#![cfg_attr(no_std, no_std)]
-
 #[macro_use]
 extern crate bitflags;
 #[macro_use]

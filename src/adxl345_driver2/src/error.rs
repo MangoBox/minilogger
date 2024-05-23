@@ -1,4 +1,3 @@
-
 // MIT License
 //
 // Copyright 2023-2024 Michael Büsch <m@bues.ch>
@@ -25,12 +24,9 @@
 //! A common set of error and result type used in the library.
 
 /// Provides a shared set of error types.
-
-
 use core::fmt::Debug;
 use core::prelude::rust_2021::derive;
 use core::write;
-
 
 #[derive(Debug)]
 pub enum AdxlError {

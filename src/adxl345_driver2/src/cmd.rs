@@ -1,4 +1,3 @@
-#![no_std]
 // MIT License
 //
 // Copyright 2023-2024 Michael Büsch <m@bues.ch>
@@ -61,28 +60,24 @@
 //!
 //! [ADXL345 Datasheet]: https://www.analog.com/media/en/technical-documentation/data-sheets/ADXL345.pdf
 
-
 use crate::{AdxlError, AdxlResult, Result};
-use core::convert::{TryFrom, TryInto};
-use core::result::Result::Err;
-use core::result::Result::Ok;
+use core::clone::Clone;
+use core::cmp::Eq;
+use core::cmp::Ord;
+use core::cmp::PartialEq;
+use core::cmp::PartialOrd;
+use core::convert::From;
 use core::convert::Into;
+use core::convert::{TryFrom, TryInto};
+use core::default::Default;
+use core::fmt::Debug;
+use core::hash::Hash;
+use core::marker::Copy;
 use core::option::Option;
 use core::option::Option::Some;
-use core::clone::Clone;
-use core::marker::Copy;
-use core::cmp::PartialEq;
-use core::cmp::Eq;
-use core::cmp::PartialOrd;
-use core::cmp::Ord;
-use core::hash::Hash;
-use core::default::Default;
-use core::convert::From;
-use core::fmt::Debug;
 use core::prelude::rust_2021::derive;
-
-
-
+use core::result::Result::Err;
+use core::result::Result::Ok;
 
 /// Complete R/W register command set for the accelerometer.
 pub trait Adxl345: Adxl345Reader + Adxl345Writer {}
