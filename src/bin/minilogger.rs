@@ -45,10 +45,14 @@ async fn log_acceleration() {
             let i2c = guard.as_ref().unwrap();
 
             let mut adxl345 = adxl345_driver2::i2c::Device::new(RefCellDevice::new(i2c)).unwrap();
-            // Set full scale output and range to 2G.
+
+            //measurment mode
+            adxl345.set_power_control(8).unwrap();
+
             let (x, y, z) = adxl345.acceleration().unwrap();
             let x = x as f64 * SCALE_MULTIPLIER * EARTH_GRAVITY_MS2;
             let y = y as f64 * SCALE_MULTIPLIER * EARTH_GRAVITY_MS2;
+            let z = z as f64 * SCALE_MULTIPLIER * EARTH_GRAVITY_MS2;
             info!("x: {}, y: {}, z: {}", x, y, z);
         }
         Timer::after_millis(10).await;
