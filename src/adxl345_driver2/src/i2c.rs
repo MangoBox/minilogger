@@ -23,10 +23,10 @@
 
 //! Contains the I²C driver for the device.
 
-use core::result::Result::Err;
-use core::result::Result::Ok;
 use core::fmt::Debug;
 use core::prelude::rust_2021::derive;
+use core::result::Result::Err;
+use core::result::Result::Ok;
 
 use crate::{
     Adxl345, Adxl345AccExtract, Adxl345Init, Adxl345Reader, Adxl345Writer, AdxlError, AdxlResult,

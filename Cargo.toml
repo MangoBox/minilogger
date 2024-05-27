@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "embassy-stm32f1-examples"
+name = "minilogger"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
 
@@ -23,13 +23,14 @@ defmt-rtt = "0.4.0"
 panic-probe = "0.3.1"
 cortex-m = { version = "0.7.6", features = ["inline-asm", "critical-section-single-core"] }
 cortex-m-rt = "0.7.0"
-embedded-hal = "0.2.6"
+embedded-hal = "1.0.0"
 futures = { version = "0.3.17", default-features = false, features = ["async-await"] }
 heapless = { version = "0.8", default-features = false }
 nb = "1.0.0"
-sh1106 = "0.5.0"
+sh1106 = { git = "https://github.com/techmccat/sh1106.git", branch = "hal-1" }
 embedded-graphics = "0.8.1"
 panic-halt = "0.2.0"
+embedded-hal-bus = "0.2.0"
 
 
 [dependencies.adxl345_driver2]
